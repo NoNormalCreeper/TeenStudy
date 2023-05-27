@@ -71,17 +71,15 @@ def user_authentication():
             payload = jwt.decode(token, key, algorithms=algorithm)
             if not (user_id := payload.get('user_id')):
                 raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
-            else:
-                try:
-                    role = payload.get('role')
-                    if role:
-                        raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
-                    else:
-                        result = await User.filter(user_id=user_id).count()
-                        if not result:
-                            raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
-                except (jwt.JWTError, jwt.ExpiredSignatureError, AttributeError):
+            try:
+                role = payload.get('role')
+                if role:
                     raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
+                result = await User.filter(user_id=user_id).count()
+                if not result:
+                    raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
+            except (jwt.JWTError, jwt.ExpiredSignatureError, AttributeError):
+                raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
         except (jwt.JWTError, jwt.ExpiredSignatureError, AttributeError):
             raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
 
@@ -97,19 +95,18 @@ def admin_authentication():
             payload = jwt.decode(token, key, algorithms=algorithm)
             if not (user_id := payload.get('user_id')):
                 raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
-            else:
-                try:
-                    role = payload.get('role')
-                    if role:
-                        result = getConfig()
-                        if result["SUPERUSER"] != user_id:
-                            result = False
-                        if not result:
-                            raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
-                    else:
+            try:
+                role = payload.get('role')
+                if role:
+                    result = getConfig()
+                    if result["SUPERUSER"] != user_id:
+                        result = False
+                    if not result:
                         raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
-                except (jwt.JWTError, jwt.ExpiredSignatureError, AttributeError):
+                else:
                     raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
+            except (jwt.JWTError, jwt.ExpiredSignatureError, AttributeError):
+                raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
         except (jwt.JWTError, jwt.ExpiredSignatureError, AttributeError):
             raise HTTPException(status_code=400, detail='登录验证失败或已失效，请重新登录')
 

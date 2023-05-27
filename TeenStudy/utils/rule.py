@@ -14,13 +14,12 @@ async def must_group(bot: Bot, event: MessageEvent) -> bool:
     :param event: 事件
     :return: 返回True或False
     """
-    if event.message_type == "group":
-        self_id = int(bot.self_id)
-        group_id = event.group_id
-        if await PushList.filter(group_id=group_id, status=True, self_id=self_id).count():
-            return True
-    else:
+    if event.message_type != "group":
         return False
+    self_id = int(bot.self_id)
+    group_id = event.group_id
+    if await PushList.filter(group_id=group_id, status=True, self_id=self_id).count():
+        return True
 
 
 async def must_command(order: Message = CommandArg()) -> bool:
@@ -29,10 +28,7 @@ async def must_command(order: Message = CommandArg()) -> bool:
     :param order: 指令后面的内容
     :return: 返回True或False
     """
-    if order:
-        return False
-    else:
-        return True
+    return not order
 
 
 async def must_leader(bot: Bot, event: MessageEvent) -> bool:
@@ -42,14 +38,13 @@ async def must_leader(bot: Bot, event: MessageEvent) -> bool:
     :param event: 消息事件
     :return:
     """
-    if event.message_type == "group":
-        self_id = int(bot.self_id)
-        group_id = event.group_id
-        user_id = event.user_id
-        if await User.filter(leader=user_id, group_id=group_id).count():
-            return True
-    else:
+    if event.message_type != "group":
         return False
+    self_id = int(bot.self_id)
+    group_id = event.group_id
+    user_id = event.user_id
+    if await User.filter(leader=user_id, group_id=group_id).count():
+        return True
 
 
 async def check_poke(event: NotifyEvent) -> bool:
@@ -58,19 +53,15 @@ async def check_poke(event: NotifyEvent) -> bool:
     :param event: 通知事件
     :return: 返回True或False
     """
-    if event.sub_type in ["poke"]:
-        return True
-    else:
-        return False
+    return event.sub_type in ["poke"]
 
 
 async def check_time():
     now_day = datetime.datetime.now().weekday()
-    now_hour = datetime.datetime.now().hour
-    if now_day in [0,  6]:
-        if now_day in [5, 6]:
+    if now_day in {0, 6}:
+        if now_day in {5, 6}:
             return False
-        else:
-            if now_hour in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
-                return False
+        now_hour = datetime.datetime.now().hour
+        if now_hour in {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}:
+            return False
     return True

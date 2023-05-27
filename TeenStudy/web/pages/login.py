@@ -1,7 +1,8 @@
 from amis import Form, InputText, InputPassword, DisplayModeEnum, Horizontal, Remark, Html, Page, AmisAPI, Wrapper, \
     Switch
 
-logo = Html(html=f'''
+logo = Html(
+    html='''
 <p align="center">
     <a href="https://github.com/ZM25XC/TeenStudy/">
         <img src="https://i.328888.xyz/2023/02/23/xIh5k.png"
@@ -16,7 +17,8 @@ logo = Html(html=f'''
 </div>
 <br>
 <br>
-''')
+'''
+)
 login_api = AmisAPI(
     url='/TeenStudy/api/login',
     method='post',

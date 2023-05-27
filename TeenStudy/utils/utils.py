@@ -239,24 +239,23 @@ update_resource = on_command("update_resource", aliases={"更新资源数据", "
 
 @update_resource.got(key="msg", prompt="是否刷新资源数据库信息？（是|否）")
 async def update_resource_(msg: str = ArgStr("msg")) -> None:
-    if msg not in ["是", "yes", "Y", "y", "YES", "true"]:
-        await update_resource.finish(message="操作取消(*^▽^*)", at_sender=True, reply_message=True)
-    else:
+    if msg in {"是", "yes", "Y", "y", "YES", "true"}:
         await update_resource.send("资源重新载入中（请等待1分钟左右）······", at_sender=True, reply_message=True)
         await JiangXi.all().delete()
         await Resource.all().delete()
         await resource_init()
         await update_resource.finish(message="资源数据载入成功(^_−)☆", at_sender=True, reply_message=True)
 
+    else:
+        await update_resource.finish(message="操作取消(*^▽^*)", at_sender=True, reply_message=True)
+
 
 @export_data.got(key="msg", prompt="是否导出用户数据至TeenStudy目录？（是|否）")
 async def export_user(event: MessageEvent, msg: str = ArgStr("msg")) -> None:
-    self_id = event.self_id
-    if msg not in ["是", "yes", "Y", "y", "YES", "true"]:
-        await export_data.finish(message="操作取消(*^▽^*)", at_sender=True, reply_message=True)
-    else:
+    if msg in {"是", "yes", "Y", "y", "YES", "true"}:
         result = await User.all().values()
         user_list = []
+        self_id = event.self_id
         for item in result:
             data = UserModel().dict()
             item["self_id"] = self_id
@@ -266,6 +265,9 @@ async def export_user(event: MessageEvent, msg: str = ArgStr("msg")) -> None:
             json.dump(user_list, w, indent=4, ensure_ascii=False)
         await export_data.finish(message="用户数据成功导出至TeenStudy目录(*^▽^*)", at_sender=True,
                                  reply_message=True)
+
+    else:
+        await export_data.finish(message="操作取消(*^▽^*)", at_sender=True, reply_message=True)
 
 
 @update_users.handle()
@@ -320,86 +322,90 @@ async def admin_init():
     result = path.getConfig()
     if result["DXX_IP"] == ip and result["SUPERUSER"] == superuser:
         return
-    else:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.41"
-        }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.41"
+    }
+    try:
+        logger.opt(colors=True).info('<u><y>[大学习数据库]</y></u><g>加载配置公网IP</g>')
+        ip = get_driver().config.dxx_ip
+        logger.opt(colors=True).info(
+            f'<u><y>[大学习数据库]</y></u><g>加载配置公网IP成功，启动检测公网IP访问状态</g>ip:<m>{ip}</m>')
+        url = f"http://{ip}:{get_driver().config.port}/TeenStudy/login"
+        logger.info(url)
         try:
+            async with AsyncClient(headers=headers) as client:
+                response = await client.get(url=url)
+            logger.debug(f"公网请求状态：{response.status_code}")
+            if response.status_code != 200:
+                ip = ""
+                logger.opt(colors=True).info(
+                    '<u><y>[大学习数据库]</y></u><g>检测到配置公网ip地址无法通过外网访问，将自动获取公网IP</g>'
+                )
+            logger.opt(colors=True).success(
+                f'<u><y>[大学习提交 Web UI]</y></u><g>配置外网IP设置成功</g>，外网访问地址为:<m>http://{ip}:{get_driver().config.port}/TeenStudy/login</m>')
+        except Exception as e:
+            logger.error(e)
+            ip = ""
             logger.opt(colors=True).info(
-                f'<u><y>[大学习数据库]</y></u><g>加载配置公网IP</g>')
-            ip = get_driver().config.dxx_ip
+                '<u><y>[大学习数据库]</y></u><g>检测到配置公网ip地址无法通过外网访问，将自动配置局域网IP</g>'
+            )
+    except AttributeError:
+        ip = ''
+        logger.opt(colors=True).info(
+            '<u><y>[大学习数据库]</y></u><g>加载配置IP失败，未检测到配置ip，启动自动获取公网IP</g>'
+        )
+    if not ip:
+        async with AsyncClient(headers=headers) as client:
+            response = await client.get("http://ip.42.pl/raw")
+        if response.status_code == 200:
+            ip = response.text.strip()
             logger.opt(colors=True).info(
-                f'<u><y>[大学习数据库]</y></u><g>加载配置公网IP成功，启动检测公网IP访问状态</g>ip:<m>{ip}</m>')
+                f'<u><y>[大学习数据库]</y></u><g>自动获取公网IP成功，启动检测公网IP访问状态</g>ip:<m>{ip}</m>')
             url = f"http://{ip}:{get_driver().config.port}/TeenStudy/login"
             logger.info(url)
             try:
-                async with AsyncClient(headers=headers) as client:
+                async with AsyncClient(headers=headers, timeout=5) as client:
                     response = await client.get(url=url)
-                logger.debug(f"公网请求状态：{response.status_code}")
-                if response.status_code != 200:
+                logger.debug(f"公网请求状态:{response.status_code}")
+                if response.status_code == 200:
+                    logger.opt(colors=True).success(
+                        f'<u><y>[大学习提交 Web UI]</y></u><g>自动获取外网IP成功</g>，外网访问地址为:<m>http://{ip}:{get_driver().config.port}/TeenStudy/login</m>')
+                else:
                     ip = ""
-                    logger.opt(colors=True).info(
-                        f'<u><y>[大学习数据库]</y></u><g>检测到配置公网ip地址无法通过外网访问，将自动获取公网IP</g>')
-                logger.opt(colors=True).success(
-                    f'<u><y>[大学习提交 Web UI]</y></u><g>配置外网IP设置成功</g>，外网访问地址为:<m>http://{ip}:{get_driver().config.port}/TeenStudy/login</m>')
-            except Exception as e:
-                logger.error(e)
-                ip = ""
-                logger.opt(colors=True).info(
-                    f'<u><y>[大学习数据库]</y></u><g>检测到配置公网ip地址无法通过外网访问，将自动配置局域网IP</g>')
-        except AttributeError:
-            ip = ''
-            logger.opt(colors=True).info(
-                f'<u><y>[大学习数据库]</y></u><g>加载配置IP失败，未检测到配置ip，启动自动获取公网IP</g>')
-        if not ip:
-            async with AsyncClient(headers=headers) as client:
-                response = await client.get("http://ip.42.pl/raw")
-            if response.status_code == 200:
-                ip = response.text.strip()
-                logger.opt(colors=True).info(
-                    f'<u><y>[大学习数据库]</y></u><g>自动获取公网IP成功，启动检测公网IP访问状态</g>ip:<m>{ip}</m>')
-                url = f"http://{ip}:{get_driver().config.port}/TeenStudy/login"
-                logger.info(url)
-                try:
-                    async with AsyncClient(headers=headers, timeout=5) as client:
-                        response = await client.get(url=url)
-                    logger.debug(f"公网请求状态:{response.status_code}")
-                    if response.status_code != 200:
-                        ip = ""
-                        logger.opt(colors=True).warning(
-                            f'<u><y>[大学习数据库]</y></u><g>检测到ip地址无法通过外网访问，将自动配置局域网IP，请手动在.env.prod文件中配置公网IP，配置格式：DXX_IP="您的公网IP"</g>')
-                    else:
-                        logger.opt(colors=True).success(
-                            f'<u><y>[大学习提交 Web UI]</y></u><g>自动获取外网IP成功</g>，外网访问地址为:<m>http://{ip}:{get_driver().config.port}/TeenStudy/login</m>')
-                except Exception as e:
-                    ip = ""
-                    logger.debug(e)
                     logger.opt(colors=True).warning(
-                        f'<u><y>[大学习数据库]</y></u><g>检测到ip地址无法通过外网访问，将自动配置局域网IP，请手动在.env.prod文件中配置公网IP，配置格式：DXX_IP="您的公网IP"</g>')
-            else:
+                        '<u><y>[大学习数据库]</y></u><g>检测到ip地址无法通过外网访问，将自动配置局域网IP，请手动在.env.prod文件中配置公网IP，配置格式：DXX_IP="您的公网IP"</g>'
+                    )
+            except Exception as e:
                 ip = ""
+                logger.debug(e)
                 logger.opt(colors=True).warning(
-                    f'<u><y>[大学习数据库]</y></u><g>自动获取公网IP失败，将自动配置局域网IP，请手动在.env.prod文件中配置公网IP，配置格式：DXX_IP="您的公网IP"</g>')
-        if not ip:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(('114.114.114.114', 12345))
-            ip = s.getsockname()[0]
-            logger.opt(colors=True).success(
-                f'<u><y>[大学习提交 Web UI]</y></u><g>配置局域网IP成功</g>，局域网访问地址为:<m>http://{ip}:{get_driver().config.port}/TeenStudy/login</m>')
-        data = {
-            "TOKEN_TIME": 30,
-            "SUPERUSER": int(list(SUPERS)[0]),
-            "KEY": "d82ffad91168fb324ab6ebc2bed8dacd43f5af8e34ad0d1b75d83a0aff966a06",
-            "ALGORITHM": "HS256",
-            "PASSWORD": await to_hash("admin"),
-            "DXX_IP": ip,
-            "DXX_PORT": get_driver().config.port
-        }
-        path.saveConfig(data=data)
+                    '<u><y>[大学习数据库]</y></u><g>检测到ip地址无法通过外网访问，将自动配置局域网IP，请手动在.env.prod文件中配置公网IP，配置格式：DXX_IP="您的公网IP"</g>'
+                )
+        else:
+            ip = ""
+            logger.opt(colors=True).warning(
+                '<u><y>[大学习数据库]</y></u><g>自动获取公网IP失败，将自动配置局域网IP，请手动在.env.prod文件中配置公网IP，配置格式：DXX_IP="您的公网IP"</g>'
+            )
+    if not ip:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('114.114.114.114', 12345))
+        ip = s.getsockname()[0]
+        logger.opt(colors=True).success(
+            f'<u><y>[大学习提交 Web UI]</y></u><g>配置局域网IP成功</g>，局域网访问地址为:<m>http://{ip}:{get_driver().config.port}/TeenStudy/login</m>')
+    data = {
+        "TOKEN_TIME": 30,
+        "SUPERUSER": int(list(SUPERS)[0]),
+        "KEY": "d82ffad91168fb324ab6ebc2bed8dacd43f5af8e34ad0d1b75d83a0aff966a06",
+        "ALGORITHM": "HS256",
+        "PASSWORD": await to_hash("admin"),
+        "DXX_IP": ip,
+        "DXX_PORT": get_driver().config.port
+    }
+    path.saveConfig(data=data)
 
 
 async def resource_init():
-    base_file_path = os.path.dirname(__file__)[:-5] + "resource/"
+    base_file_path = f"{os.path.dirname(__file__)[:-5]}resource/"
     logger.opt(colors=True).info("<u><y>[大学习数据库]</y></u><g>➤➤➤➤➤检查资源数据✔✔✔✔✔</g>")
     for item in RESOURCE:
         if not await Resource.filter(name=item['name']).count():
@@ -421,7 +427,7 @@ async def resource_init():
                 continue
     try:
         if not await JiangXi.all().count():
-            with open(base_file_path + "dxx_jx.json", 'r', encoding='utf-8') as r:
+            with open(f"{base_file_path}dxx_jx.json", 'r', encoding='utf-8') as r:
                 obj = json.load(r)
             for item in obj:
                 await JiangXi.create(
@@ -434,7 +440,8 @@ async def resource_init():
                     organization_id=item['organization_id']
                 )
             logger.opt(colors=True).success(
-                f"<u><y>[大学习数据库]</y></u> <m>江西共青团团支部数据</m> <g>更新成功!</g>")
+                "<u><y>[大学习数据库]</y></u> <m>江西共青团团支部数据</m> <g>更新成功!</g>"
+            )
     except Exception as e:
         logger.error(e)
     logger.opt(colors=True).success("<u><y>[大学习数据库]</y></u><g>➤➤➤➤➤资源数据更新完成✔✔✔✔✔</g>")
@@ -459,8 +466,7 @@ async def get_end_pic():
     buf = BytesIO()
     img.save(buf, format="PNG")
     base64_str = base64.b64encode(buf.getbuffer()).decode()
-    content = "base64://" + base64_str
-    return content
+    return f"base64://{base64_str}"
 
 
 async def get_answer_pic():
@@ -495,8 +501,7 @@ async def get_answer_pic():
     buf = BytesIO()
     img.save(buf, format="PNG")
     base64_str = base64.b64encode(buf.getbuffer()).decode()
-    content = "base64://" + base64_str
-    return content
+    return f"base64://{base64_str}"
 
 
 async def to_hash(text: str) -> str:
@@ -562,7 +567,7 @@ async def distribute_area_url(province: str, user_id: int, group_id: int) -> dic
     buf = BytesIO()
     img.save(buf, format="PNG")
     base64_str = base64.b64encode(buf.getbuffer()).decode()
-    content = "base64://" + base64_str
+    content = f"base64://{base64_str}"
     return {
         "url": data,
         "content": content
@@ -576,7 +581,7 @@ async def get_login_qrcode() -> dict:
     buf = BytesIO()
     img.save(buf, format="PNG")
     base64_str = base64.b64encode(buf.getbuffer()).decode()
-    content = "base64://" + base64_str
+    content = f"base64://{base64_str}"
     return {
         "url": data,
         "content": content
@@ -593,7 +598,7 @@ async def get_qrcode(user_id: int, group_id: int, area: str) -> dict:
     buf = BytesIO()
     img.save(buf, format="PNG")
     base64_str = base64.b64encode(buf.getbuffer()).decode()
-    content = "base64://" + base64_str
+    content = f"base64://{base64_str}"
     return {
         "url": data,
         "content": content

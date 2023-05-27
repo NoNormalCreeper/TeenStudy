@@ -99,35 +99,43 @@ async def add_(event: GroupMessageEvent, province: str = ArgStr("province")) -> 
     group_id = event.group_id
     user_id = event.user_id
     config = getConfig()
-    if province in ["取消", "No", "停止", "NO"]:
+    if province in {"取消", "No", "停止", "NO"}:
         await add.finish(message=MessageSegment.text("操作取消！φ(>ω<*) "), at_sender=True, reply_message=True)
     if await Area.filter(area=province).count():
         url = await distribute_area_url(province=province, user_id=user_id, group_id=group_id)
-        if province in ["上海", "浙江"]:
+        if province in {"上海", "浙江"}:
             content = await get_qrcode(user_id=user_id, group_id=group_id, area=province)
-            if config["URL_STATUS"]:
-                result = await add.send(
-                    message=MessageSegment.text(f"请复制链接到微信点击打开进行绑定( ･´ω`･ )\n{content['url']}"),
-                    at_sender=True,
-                    reply_message=True)
-            else:
-                result = await add.send(
-                    message=MessageSegment.text("请使用微信扫码进行绑定( ･´ω`･ )") + MessageSegment.image(
-                        content["content"]), at_sender=True,
-                    reply_message=True)
-        else:
-            if config["URL_STATUS"]:
-                result = await add.send(
+            result = (
+                await add.send(
                     message=MessageSegment.text(
-                        f"请点击链接进入网页添加绑定，如QQ无法打开链接，请复制链接到浏览器( ･´ω`･ )\n{url['url']}"),
+                        f"请复制链接到微信点击打开进行绑定( ･´ω`･ )\n{content['url']}"
+                    ),
                     at_sender=True,
-                    reply_message=True)
-            else:
-                result = await add.send(
-                    message=MessageSegment.text(f"请扫码进入网页添加绑定( ･´ω`･ )") + MessageSegment.image(
-                        url['content']),
+                    reply_message=True,
+                )
+                if config["URL_STATUS"]
+                else await add.send(
+                    message=MessageSegment.text("请使用微信扫码进行绑定( ･´ω`･ )")
+                    + MessageSegment.image(content["content"]),
                     at_sender=True,
-                    reply_message=True)
+                    reply_message=True,
+                )
+            )
+        elif config["URL_STATUS"]:
+            result = await add.send(
+                message=MessageSegment.text(
+                    f"请点击链接进入网页添加绑定，如QQ无法打开链接，请复制链接到浏览器( ･´ω`･ )\n{url['url']}"),
+                at_sender=True,
+                reply_message=True)
+        else:
+            result = await add.send(
+                message=(
+                    MessageSegment.text("请扫码进入网页添加绑定( ･´ω`･ )")
+                    + MessageSegment.image(url['content'])
+                ),
+                at_sender=True,
+                reply_message=True,
+            )
         await AddUser.create(
             time=time.time(),
             user_id=user_id,
@@ -229,11 +237,11 @@ async def finish() -> None:
 
 @finish_dxx.got(key="msg", prompt="是否提交团支部全体成员最新一期青年大学习？（是|否）")
 async def finish(event: GroupMessageEvent, msg: str = ArgStr("msg")) -> None:
-    if msg not in ["是", "yes", "Y", "y", "YES", "true"]:
-        await finish_dxx.finish(message=MessageSegment.text("操作取消(*^▽^*)"), at_sender=True, reply_message=True)
-    else:
+    if msg in {"是", "yes", "Y", "y", "YES", "true"}:
         await finish_dxx.send(message=MessageSegment.text("开始提交(*￣︶￣)"), at_sender=True, reply_message=True)
 
+    else:
+        await finish_dxx.finish(message=MessageSegment.text("操作取消(*^▽^*)"), at_sender=True, reply_message=True)
     group_id = event.group_id
     user_id = event.user_id
     result = await User.filter(leader=user_id, group_id=group_id).values()
@@ -243,24 +251,21 @@ async def finish(event: GroupMessageEvent, msg: str = ArgStr("msg")) -> None:
         for item in result:
             if item["catalogue"] == catalogue:
                 continue
-            else:
-                await distribute_area(user_id=item["user_id"], area=item["area"])
-                await asyncio.sleep(random.randint(10, 15))
+            await distribute_area(user_id=item["user_id"], area=item["area"])
+            await asyncio.sleep(random.randint(10, 15))
     await finish_dxx.finish(message=MessageSegment.text("提交完成！"), at_sender=True, reply_message=True)
 
 
 @reset_config.got(key="msg", prompt="是否重置大学习配置为默认配置？（是|否）")
 async def reset_config_(event: MessageEvent, msg: str = ArgStr("msg")) -> None:
-    user_id = event.user_id
-    if msg not in ["是", "yes", "Y", "y", "YES", "true"]:
-        await reset_config.finish(message=MessageSegment.text("操作取消(*^▽^*)"), at_sender=True, reply_message=True)
-    else:
+    if msg in {"是", "yes", "Y", "y", "YES", "true"}:
         try:
             ip = get_driver().config.dxx_ip
         except AttributeError:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(('114.114.114.114', 12345))
             ip = s.getsockname()[0]
+        user_id = event.user_id
         data = {
             "TOKEN_TIME": 30,
             "SUPERUSER": user_id,
@@ -269,13 +274,14 @@ async def reset_config_(event: MessageEvent, msg: str = ArgStr("msg")) -> None:
             "PASSWORD": await to_hash("admin"),
             "DXX_IP": ip
         }
-        status = saveConfig(data=data)
-        if status:
+        if status := saveConfig(data=data):
             await reset_config.finish(message=MessageSegment.text("重置成功(oﾟ▽ﾟ)o  "), at_sender=True,
                                       reply_message=True)
         else:
             await reset_config.finish(message=MessageSegment.text("重置失败╮(╯﹏╰）╭ "), at_sender=True,
                                       reply_message=True)
+    else:
+        await reset_config.finish(message=MessageSegment.text("操作取消(*^▽^*)"), at_sender=True, reply_message=True)
 
 
 @reset_password.handle()
@@ -289,15 +295,16 @@ async def reset_password_(event: MessageEvent) -> None:
 
 @reset_password.got(key="msg", prompt="是否重置大学习登录密码？（是|否）")
 async def reset_password_(event: MessageEvent, msg: str = ArgStr("msg")) -> None:
-    user_id = event.user_id
-    if msg not in ["是", "yes", "Y", "y", "YES", "true"]:
-        await reset_password.finish(message=MessageSegment.text("操作取消(*^▽^*)"), at_sender=True, reply_message=True)
-    else:
+    if msg in {"是", "yes", "Y", "y", "YES", "true"}:
+        user_id = event.user_id
         await User.filter(user_id=user_id).update(
             password=await to_hash(str(user_id))
         )
         await reset_password.finish(message=MessageSegment.text("登录密码重置成功，默认为用户QQ(๑*◡*๑)"),
                                     at_sender=True, reply_message=True)
+
+    else:
+        await reset_password.finish(message=MessageSegment.text("操作取消(*^▽^*)"), at_sender=True, reply_message=True)
 
 
 @delete_dxx.handle()
@@ -313,11 +320,12 @@ async def delete_dxx_(event: GroupMessageEvent, state: T_State) -> None:
 
 @delete_dxx.got(key="msg", prompt="是否删除大学习数据？（是|否）")
 async def delete_dxx_(state: T_State, msg: str = ArgStr("msg")) -> None:
-    if msg not in ["是", "yes", "Y", "y", "YES", "true"]:
-        await delete_dxx.finish(message=MessageSegment.text("操作取消(*^▽^*)"), at_sender=True, reply_message=True)
-    else:
+    if msg in {"是", "yes", "Y", "y", "YES", "true"}:
         await User.filter(id=state["id"]).delete()
         await delete_dxx.finish(message=MessageSegment.text("删除成功(*^▽^*)"), at_sender=True, reply_message=True)
+
+    else:
+        await delete_dxx.finish(message=MessageSegment.text("操作取消(*^▽^*)"), at_sender=True, reply_message=True)
 
 
 @scheduler.scheduled_job('cron', day_of_week='0', hour=CONFIG["DXX_REMIND_HOUR"], minute=CONFIG["DXX_REMIND_MINUTE"],
@@ -334,21 +342,19 @@ async def push_dxx() -> None:
     answer_result = await Answer.all().order_by('time').values()
     if (int(time.time()) - answer_result[-1]["time"]) > 259200:
         return None
-    else:
-        catalogue = answer_result[-1]["catalogue"]
-        now_time = datetime.datetime.fromtimestamp(answer_result[-1]["time"]).strftime("%Y年%m月%d日 %H:%M:%S")
-        message = f'\n本周的大学习开始喽!\n{catalogue}\n更新时间：{now_time}\n答案见图一\n完成截图见图二\nPs:当11:00:00以后，可使用 提交大学习 指令或戳一戳Bot完成大学习!'
-        push_list = await PushList.filter(status=True).values()
-        for item in push_list:
-            try:
-                await bot.send_group_msg(group_id=item["group_id"],
-                                         message=MessageSegment.at("all") + MessageSegment.text(
-                                             message) + MessageSegment.image(
-                                             await get_answer_pic()) + MessageSegment.image(await get_end_pic()))
-                await asyncio.sleep(random.randint(15, 30))
-            except Exception as e:
-                logger.error(e)
-                continue
+    catalogue = answer_result[-1]["catalogue"]
+    now_time = datetime.datetime.fromtimestamp(answer_result[-1]["time"]).strftime("%Y年%m月%d日 %H:%M:%S")
+    message = f'\n本周的大学习开始喽!\n{catalogue}\n更新时间：{now_time}\n答案见图一\n完成截图见图二\nPs:当11:00:00以后，可使用 提交大学习 指令或戳一戳Bot完成大学习!'
+    push_list = await PushList.filter(status=True).values()
+    for item in push_list:
+        try:
+            await bot.send_group_msg(group_id=item["group_id"],
+                                     message=MessageSegment.at("all") + MessageSegment.text(
+                                         message) + MessageSegment.image(
+                                         await get_answer_pic()) + MessageSegment.image(await get_end_pic()))
+            await asyncio.sleep(random.randint(15, 30))
+        except Exception as e:
+            logger.error(e)
 
 
 @scheduler.scheduled_job('cron', day_of_week='0', hour=CONFIG["AUTO_SUBMIT_HOUR"], minute=CONFIG["AUTO_SUBMIT_MINUTE"],
@@ -360,13 +366,10 @@ async def auto_dxx() -> None:
     answer_result = await Answer.all().order_by('time').values()
     if (int(time.time()) - answer_result[-1]["time"]) > 259200:
         return None
-    else:
-        user_list = await User.all().values("id", "area", "catalogue", "user_id")
-        catalogue = answer_result[-1]["catalogue"]
-        for item in user_list:
-            result = await User.filter(id=item["id"]).values("id", "area", "catalogue", "user_id", "auto_submit")
-            if result[0]["catalogue"] == catalogue or not result[0]["auto_submit"]:
-                continue
-            else:
-                await distribute_area(user_id=item["user_id"], area=item["area"])
-                await asyncio.sleep(random.randint(15, 45))
+    user_list = await User.all().values("id", "area", "catalogue", "user_id")
+    catalogue = answer_result[-1]["catalogue"]
+    for item in user_list:
+        result = await User.filter(id=item["id"]).values("id", "area", "catalogue", "user_id", "auto_submit")
+        if result[0]["catalogue"] != catalogue and result[0]["auto_submit"]:
+            await distribute_area(user_id=item["user_id"], area=item["area"])
+            await asyncio.sleep(random.randint(15, 45))
