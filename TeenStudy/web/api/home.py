@@ -32,23 +32,21 @@ async def get_user(user_id: int) -> JSONResponse:
 
 @route.put("/change", response_class=JSONResponse, dependencies=[authentication()])
 async def change(user_id: int, data: dict) -> JSONResponse:
-    if await User.filter(user_id=user_id).values():
-        password = data["Password"]
-        if password:
-            data["password"] = await to_hash(password)
-        data.pop("Password")
-        if data["leader"] == "":
-            data["leader"] = None
-        await User.filter(user_id=user_id).update(**data)
-        return JSONResponse({
-            "status": 0,
-            "msg": "修改成功！"
-        })
-    else:
+    if not await User.filter(user_id=user_id).values():
         return JSONResponse({
             "status": 422,
             "msg": "用户不存在！"
         })
+    if password := data["Password"]:
+        data["password"] = await to_hash(password)
+    data.pop("Password")
+    if data["leader"] == "":
+        data["leader"] = None
+    await User.filter(user_id=user_id).update(**data)
+    return JSONResponse({
+        "status": 0,
+        "msg": "修改成功！"
+    })
 
 
 @route.get("/get_records", response_class=JSONResponse, dependencies=[authentication()])

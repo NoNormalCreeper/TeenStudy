@@ -2,7 +2,8 @@ from amis import App, PageSchema, Flex, ActionType, LevelEnum, Dialog, Form, Dis
     CRUD, Tpl, Switch
 from amis import Html, Page, Property, Service, Divider
 
-logo = Html(html=f'''
+logo = Html(
+    html='''
 <p align="center">
     <a href="https://github.com/ZM25XC/TeenStudy/">
         <img src="https://i.328888.xyz/2023/02/23/xIh5k.png"
@@ -16,7 +17,8 @@ logo = Html(html=f'''
     <a href="https://jq.qq.com/?_wv=1027&k=NGFEwXyS" target="_blank">交流群</a>
 </div>
 <br>
-''')
+'''
+)
 github_logo = Tpl(className='w-full',
                   tpl='<div class="flex justify-between"><div></div><div><a href="https://github.com/ZM25XC/TeenStudy" target="_blank" title="Github 仓库"><i class="fa fa-github fa-2x"></i></a></div></div>')
 header = Flex(className='w-full', justify='flex-end', alignItems='flex-end', items=[github_logo])
@@ -292,16 +294,30 @@ answer_table = CRUD(mode='table',
                     ])
 page_detail = Page(title='', body=[logo, operation_button, Divider(), from_table])
 home_page = PageSchema(url='/home', label='首页', icon='fa fa-home', isDefaultPage=True, schema=page_detail)
-home_app = App(brandName='TeenStudy',
-               logo='https://i.328888.xyz/2023/02/23/xIh5k.png',
-               header=header,
-               pages=[{
-                   'children': [
-                       home_page,
-                       PageSchema(url="answer", label='大学习列表', icon='fa fa-book-open',
-                                  schema=Page(title='', body=[answer_table])),
-                       PageSchema(url="/records", label='提交记录', icon='fa fa-code-commit',
-                                  schema=Page(title='', body=[record_table]))
-                   ]}],
-               footer=Html(
-                   html=f'<div class="p-2 text-center bg-blue-100">Copyright © 2022 - 2023 <a href="https://github.com/ZM25XC/TeenStudy" target="_blank" class="link-secondary">TeenStudy</a> X<a target="_blank" href="https://github.com/baidu/amis" class="link-secondary" rel="noopener"> amis v2.2.0</a></div>'))
+home_app = App(
+    brandName='TeenStudy',
+    logo='https://i.328888.xyz/2023/02/23/xIh5k.png',
+    header=header,
+    pages=[
+        {
+            'children': [
+                home_page,
+                PageSchema(
+                    url="answer",
+                    label='大学习列表',
+                    icon='fa fa-book-open',
+                    schema=Page(title='', body=[answer_table]),
+                ),
+                PageSchema(
+                    url="/records",
+                    label='提交记录',
+                    icon='fa fa-code-commit',
+                    schema=Page(title='', body=[record_table]),
+                ),
+            ]
+        }
+    ],
+    footer=Html(
+        html='<div class="p-2 text-center bg-blue-100">Copyright © 2022 - 2023 <a href="https://github.com/ZM25XC/TeenStudy" target="_blank" class="link-secondary">TeenStudy</a> X<a target="_blank" href="https://github.com/baidu/amis" class="link-secondary" rel="noopener"> amis v2.2.0</a></div>'
+    ),
+)

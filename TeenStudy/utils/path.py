@@ -80,9 +80,7 @@ def saveConfig(data: dict) -> bool:
 
 def getConfig() -> dict:
     if not Path(CONFIG_PATH).exists():
-        status = saveConfig({
-        })
-        if status:
+        if status := saveConfig({}):
             return Config().dict()
     else:
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:

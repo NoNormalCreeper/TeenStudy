@@ -290,10 +290,10 @@ async def add_push(data: dict) -> JSONResponse:
                 continue
             await PushList.create(
                 time=time.time(),
-                self_id=self_id,
+                user_id=user_id,
                 user_id=user_id,
                 group_id=group_id,
-                status=True
+                status=True,
             )
         except Exception as e:
             logger.error(e)

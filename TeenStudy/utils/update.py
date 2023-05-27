@@ -57,7 +57,7 @@ async def crawl_answer(url: str) -> dict:
                 if check is not None:
                     answer.append(check)
             if len(answer) > 4:
-                answer = answer[:int(len(answer) / 2)]
+                answer = answer[:len(answer) // 2]
             tmp.append(answer)
     req_end = 0
     flag = {"location": 0, "result": True}
@@ -92,10 +92,7 @@ async def crawl_answer(url: str) -> dict:
     if len(answer_attrs["optional"]) != 0:
         output.append("课外习题\n")
         for i, v in enumerate(answer_attrs["optional"]):
-            checks = ""
-            for j, v2 in enumerate(v):
-                if v2 == "1":
-                    checks += option[j]
+            checks = "".join(option[j] for j, v2 in enumerate(v) if v2 == "1")
             output.append(template.format(num=i + 1, check=checks) + "\n")
     result = [output[0]]
     for i, v in enumerate(output):
@@ -106,7 +103,7 @@ async def crawl_answer(url: str) -> dict:
     try:
         end_url = url.replace('m.html', 'images/end.jpg')
     except:
-        end_url = url[:-6] + 'images/end.jpg'
+        end_url = f'{url[:-6]}images/end.jpg'
     return {
         "end_url": end_url,
         "catalogue": title,
@@ -125,28 +122,27 @@ async def update_answer():
     for code in code_result:
         if await Answer.filter(code=code).count():
             continue
-        else:
-            try:
-                url = result[code]["url"]
-                data = await crawl_answer(url=url)
-                end_url = data["end_url"]
-                answer = data["answer"]
-                catalogue = data["catalogue"]
-                async with AsyncClient(headers=headers) as client:
-                    end_jpg = await client.get(end_url, timeout=10)
-                cover = end_jpg.content
-                await Answer.create(
-                    time=time.time(),
-                    code=code,
-                    catalogue=catalogue,
-                    url=url,
-                    end_url=end_url,
-                    answer=answer,
-                    cover=cover
-                )
-                logger.opt(colors=True).success(f"<u><y>青年大学习</y></u> <m>{catalogue}</m> <g>更新成功!</g>")
-            except Exception as e:
-                logger.error(e)
+        try:
+            url = result[code]["url"]
+            data = await crawl_answer(url=url)
+            end_url = data["end_url"]
+            answer = data["answer"]
+            catalogue = data["catalogue"]
+            async with AsyncClient(headers=headers) as client:
+                end_jpg = await client.get(end_url, timeout=10)
+            cover = end_jpg.content
+            await Answer.create(
+                time=time.time(),
+                code=code,
+                catalogue=catalogue,
+                url=url,
+                end_url=end_url,
+                answer=answer,
+                cover=cover
+            )
+            logger.opt(colors=True).success(f"<u><y>青年大学习</y></u> <m>{catalogue}</m> <g>更新成功!</g>")
+        except Exception as e:
+            logger.error(e)
     logger.opt(colors=True).success("<u><y>[大学习数据库]</y></u><g>➤➤➤➤➤答案数据更新完成✔✔✔✔✔</g>")
 
 
@@ -166,37 +162,36 @@ async def update_data():
     for code in code_result:
         if await Answer.filter(code=code).count():
             continue
-        else:
-            try:
-                url = result[code]["url"]
-                data = await crawl_answer(url=url)
-                end_url = data["end_url"]
-                answer = data["answer"]
-                catalogue = data["catalogue"]
-                async with AsyncClient(headers=headers) as client:
-                    end_jpg = await client.get(end_url, timeout=10)
-                cover = end_jpg.content
-                await Answer.create(
-                    time=time.time(),
-                    code=code,
-                    catalogue=catalogue,
-                    url=url,
-                    end_url=end_url,
-                    answer=answer,
-                    cover=cover
-                )
-                logger.opt(colors=True).success(f"<u><y>青年大学习</y></u> <m>{catalogue}</m> <g>更新成功!</g>")
-                admin = getConfig()
-                content = await get_login_qrcode()
-                if admin["URL_STATUS"]:
-                    await bot.send_private_msg(user_id=admin["SUPERUSER"], message=MessageSegment.text(
-                        f"检测到青年大学习有更新，下周一为{catalogue},详细信息请点击链接登录后台查看，如打不开链接，请复制链接到浏览器d(´ω｀*)\n") + MessageSegment.text(
-                        content["url"]))
+        try:
+            url = result[code]["url"]
+            data = await crawl_answer(url=url)
+            end_url = data["end_url"]
+            answer = data["answer"]
+            catalogue = data["catalogue"]
+            async with AsyncClient(headers=headers) as client:
+                end_jpg = await client.get(end_url, timeout=10)
+            cover = end_jpg.content
+            await Answer.create(
+                time=time.time(),
+                code=code,
+                catalogue=catalogue,
+                url=url,
+                end_url=end_url,
+                answer=answer,
+                cover=cover
+            )
+            logger.opt(colors=True).success(f"<u><y>青年大学习</y></u> <m>{catalogue}</m> <g>更新成功!</g>")
+            admin = getConfig()
+            content = await get_login_qrcode()
+            if admin["URL_STATUS"]:
                 await bot.send_private_msg(user_id=admin["SUPERUSER"], message=MessageSegment.text(
-                    f"检测到青年大学习有更新，下周一为{catalogue},详细信息请扫码登录后台查看d(´ω｀*)") + MessageSegment.image(
-                    content["content"]))
-            except Exception as e:
-                logger.error(e)
+                    f"检测到青年大学习有更新，下周一为{catalogue},详细信息请点击链接登录后台查看，如打不开链接，请复制链接到浏览器d(´ω｀*)\n") + MessageSegment.text(
+                    content["url"]))
+            await bot.send_private_msg(user_id=admin["SUPERUSER"], message=MessageSegment.text(
+                f"检测到青年大学习有更新，下周一为{catalogue},详细信息请扫码登录后台查看d(´ω｀*)") + MessageSegment.image(
+                content["content"]))
+        except Exception as e:
+            logger.error(e)
 
 
 @scheduler.scheduled_job('cron', second='*/15', misfire_grace_time=10)
@@ -234,7 +229,8 @@ async def clear():
         for item in result:
             await Area.filter(id=item["id"]).update(status=False)
         logger.opt(colors=True).success(
-            f"<u><y>[大学习数据库]</y></u> <m>地区最新一期状态</m> <g>重置成功!</g>")
+            "<u><y>[大学习数据库]</y></u> <m>地区最新一期状态</m> <g>重置成功!</g>"
+        )
     except Exception as e:
         logger.opt(colors=True).error(
             f"<u><y>[大学习数据库]</y></u> <m>地区最新一期状态</m> <r重置失败：{e}</r>")
